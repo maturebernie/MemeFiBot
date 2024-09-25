@@ -43,6 +43,17 @@ def get_proxies() -> list[Proxy]:
     return proxies
 
 
+def load_data(file):
+    datas = [i for i in open(file).read().splitlines() if len(i) > 0]
+    if len(datas) <= 0:
+        print(
+            f"{merah}0 account detected from {file}, fill your data in {file} first !{reset}"
+        )
+        sys.exit()
+
+    return datas
+
+
 async def get_tg_clients() -> list[Client]:
     session_names = get_session_names()
 
@@ -88,8 +99,8 @@ async def process() -> None:
     if action == 1:
         await register_sessions()
     elif action == 2:
-        tg_clients = await get_tg_clients()
-
+        # tg_clients = await get_tg_clients()
+        tg_clients = load_data('bot/config/data.txt')
         await run_tasks(tg_clients=tg_clients)
 
 

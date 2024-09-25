@@ -20,12 +20,51 @@ from bot.utils.scripts import calculate_spin_multiplier
 from bot.exceptions import InvalidSession, InvalidProtocol
 from .TLS import TLSv1_3_BYPASS
 from .headers import headers
-
+from urllib.parse import parse_qs
+import json
+import random
 
 class Tapper:
     def __init__(self, tg_client: Client):
-        self.session_name = tg_client.name
+        # self.session_name = tg_client.name
+        # 这里的name估计就是打印acct的名字的，我用first name来代替
         self.tg_client = tg_client
+
+
+        # Your query string
+        query_str = tg_client
+        # Parse the query string
+        parsed_data = parse_qs(query_str)
+
+        # Extracting each key and corresponding value
+        self.query_id = parsed_data.get('query_id', [''])[0]
+        user_str = parsed_data.get('user', [''])[0]
+        self.user_str = parsed_data.get('user', [''])[0]
+        self.auth_date = parsed_data.get('auth_date', [''])[0]
+        self.hash_value = parsed_data.get('hash', [''])[0]
+
+        # Decode the user field which is JSON encoded
+        user_data = json.loads(user_str)
+
+        # Extract user details
+        self.user_id = user_data.get('id')
+        self.first_name = user_data.get('first_name')
+        self.last_name = user_data.get('last_name')
+        self.language_code = user_data.get('language_code')
+        self.allows_write_to_pm = user_data.get('allows_write_to_pm')
+
+        self.session_name = self.first_name + " " + self.last_name
+
+        # Print each key-value pair
+        print(f"query_id: {self.query_id}")
+        print(f"user_id: {self.user_id}")
+        print(f"first_name: {self.first_name}")
+        print(f"last_name: {self.last_name}")
+        print(f"language_code: {self.language_code}")
+        print(f"allows_write_to_pm: {self.allows_write_to_pm}")
+        print(f"auth_date: {self.auth_date}")
+        print(f"hash: {self.hash_value}")
+
 
         self.GRAPHQL_URL = 'https://api-gw-tg.memefi.club/graphql'
 
@@ -42,67 +81,90 @@ class Tapper:
         else:
             proxy_dict = None
 
-        self.tg_client.proxy = proxy_dict
+        # self.tg_client.proxy = proxy_dict
 
-        try:
-            if not self.tg_client.is_connected:
-                try:
-                    await self.tg_client.connect()
-                except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
-                    raise InvalidSession(self.session_name)
-
-            web_view = await self.tg_client.invoke(RequestWebView(
-                peer=await self.tg_client.resolve_peer('memefi_coin_bot'),
-                bot=await self.tg_client.resolve_peer('memefi_coin_bot'),
-                platform='android',
-                from_bot_menu=False,
-                url='https://tg-app.memefi.club/game'
-            ))
-
-            auth_url = web_view.url
-            tg_web_data = unquote(
-                string=unquote(
-                    string=auth_url.split('tgWebAppData=', maxsplit=1)[1].split('&tgWebAppVersion', maxsplit=1)[0]))
-
-            query_id = tg_web_data.split('query_id=', maxsplit=1)[1].split('&user', maxsplit=1)[0]
-            user_data = tg_web_data.split('user=', maxsplit=1)[1].split('&auth_date', maxsplit=1)[0]
-            auth_date = tg_web_data.split('auth_date=', maxsplit=1)[1].split('&hash', maxsplit=1)[0]
-            hash_ = tg_web_data.split('hash=', maxsplit=1)[1]
-
-            me = await self.tg_client.get_me()
-
-            json_data = {
-                'operationName': OperationName.MutationTelegramUserLogin,
-                'query': Query.MutationTelegramUserLogin,
-                'variables': {
-                    'webAppData': {
-                        'auth_date': int(auth_date),
-                        'hash': hash_,
-                        'query_id': query_id,
-                        'checkDataString': f'auth_date={auth_date}\nquery_id={query_id}\nuser={user_data}',
-                        'user': {
-                            'id': me.id,
-                            'allows_write_to_pm': True,
-                            'first_name': me.first_name,
-                            'last_name': me.last_name if me.last_name else '',
-                            'username': me.username if me.username else '',
-                            'language_code': me.language_code if me.language_code else 'en',
-                        },
+        json_data = {
+            'operationName': OperationName.MutationTelegramUserLogin,
+            'query': Query.MutationTelegramUserLogin,
+            'variables': {
+                'webAppData': {
+                    'auth_date': int(self.auth_date),
+                    'hash': self.hash_value,
+                    'query_id': self.query_id,
+                    'checkDataString': f'auth_date={self.auth_date}\nquery_id={self.query_id}\nuser={self.user_str}',
+                    'user': {
+                        'id': self.user_id,
+                        'allows_write_to_pm': True,
+                        'first_name': self.first_name,
+                        'last_name': self.last_name,
+                        'username': '',
+                        'language_code': self.language_code,
                     },
-                }
+                },
             }
+        }
 
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
+        return json_data
 
-            return json_data
+        # try:
+        #     if not self.tg_client.is_connected:
+        #         try:
+        #             await self.tg_client.connect()
+        #         except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
+        #             raise InvalidSession(self.session_name)
 
-        except InvalidSession as error:
-            raise error
+        #     web_view = await self.tg_client.invoke(RequestWebView(
+        #         peer=await self.tg_client.resolve_peer('memefi_coin_bot'),
+        #         bot=await self.tg_client.resolve_peer('memefi_coin_bot'),
+        #         platform='android',
+        #         from_bot_menu=False,
+        #         url='https://tg-app.memefi.club/game'
+        #     ))
 
-        except Exception as error:
-            logger.error(f"{self.session_name} | ❗️ Unknown error during Authorization: {error}")
-            await asyncio.sleep(delay=3)
+        #     auth_url = web_view.url
+        #     tg_web_data = unquote(
+        #         string=unquote(
+        #             string=auth_url.split('tgWebAppData=', maxsplit=1)[1].split('&tgWebAppVersion', maxsplit=1)[0]))
+
+        #     query_id = tg_web_data.split('query_id=', maxsplit=1)[1].split('&user', maxsplit=1)[0]
+        #     user_data = tg_web_data.split('user=', maxsplit=1)[1].split('&auth_date', maxsplit=1)[0]
+        #     auth_date = tg_web_data.split('auth_date=', maxsplit=1)[1].split('&hash', maxsplit=1)[0]
+        #     hash_ = tg_web_data.split('hash=', maxsplit=1)[1]
+
+        #     me = await self.tg_client.get_me()
+
+        #     json_data = {
+        #         'operationName': OperationName.MutationTelegramUserLogin,
+        #         'query': Query.MutationTelegramUserLogin,
+        #         'variables': {
+        #             'webAppData': {
+        #                 'auth_date': int(auth_date),
+        #                 'hash': hash_,
+        #                 'query_id': query_id,
+        #                 'checkDataString': f'auth_date={auth_date}\nquery_id={query_id}\nuser={user_data}',
+        #                 'user': {
+        #                     'id': me.id,
+        #                     'allows_write_to_pm': True,
+        #                     'first_name': me.first_name,
+        #                     'last_name': me.last_name if me.last_name else '',
+        #                     'username': me.username if me.username else '',
+        #                     'language_code': me.language_code if me.language_code else 'en',
+        #                 },
+        #             },
+        #         }
+        #     }
+
+        #     if self.tg_client.is_connected:
+        #         await self.tg_client.disconnect()
+
+        #     return json_data
+
+        # except InvalidSession as error:
+        #     raise error
+
+        # except Exception as error:
+        #     logger.error(f"{self.session_name} | ❗️ Unknown error during Authorization: {error}")
+        #     await asyncio.sleep(delay=3)
 
     async def get_access_token(self, http_client: aiohttp.ClientSession, tg_web_data: dict[str]):
         for _ in range(5):
@@ -118,13 +180,13 @@ class Tapper:
                 access_token = response_json.get('data', {}).get('telegramUserLogin', {}).get('access_token', '')
 
                 if not access_token:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return access_token
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error while getting Access Token: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return ""
 
@@ -149,7 +211,7 @@ class Tapper:
             return me
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️ Unknown error while getting Telegram Me: {error}")
-            await asyncio.sleep(delay=3)
+            await asyncio.sleep(random.randint(3, 20))
 
             return {}
 
@@ -173,13 +235,13 @@ class Tapper:
                 profile_data = response_json.get('data', {}).get('telegramGameGetConfig', {})
 
                 if not profile_data:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return profile_data
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error while getting Profile Data: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return {}
 
@@ -203,13 +265,13 @@ class Tapper:
                 bot_config = response_json.get('data', {}).get('telegramGameTapbotGetConfig', {})
 
                 if not bot_config:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return bot_config
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error while getting TapBot Data: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return {}
 
@@ -233,13 +295,13 @@ class Tapper:
                 start_data = response_json['data']['telegramGameTapbotStart']
 
                 if not start_data:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return start_data
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error while Starting Bot: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return None
 
@@ -263,13 +325,13 @@ class Tapper:
                 claim_data = response_json.get('data', {}).get('telegramGameTapbotClaimCoins', {})
 
                 if not claim_data:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return claim_data
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error while Claiming Bot: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return {}
 
@@ -289,7 +351,7 @@ class Tapper:
             return True
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️ Unknown error while Setting Next Boss: {error}")
-            await asyncio.sleep(delay=3)
+            await asyncio.sleep(random.randint(3, 20))
 
             return False
 
@@ -314,7 +376,7 @@ class Tapper:
             return True
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️ Unknown error while Apply {boost_type} Boost: {error}")
-            await asyncio.sleep(delay=3)
+            await asyncio.sleep(random.randint(3, 20))
 
             return False
 
@@ -392,13 +454,13 @@ class Tapper:
                 profile_data = response_json.get('data', {}).get('telegramGameProcessTapsBatch', {})
 
                 if not profile_data:
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
                     continue
 
                 return profile_data
             except Exception as error:
                 logger.error(f"{self.session_name} | ❗️ Unknown error when Tapping: {error}")
-                await asyncio.sleep(delay=3)
+                await asyncio.sleep(random.randint(3, 20))
 
         return {}
 
@@ -408,7 +470,7 @@ class Tapper:
 
         if used_attempts < total_attempts:
             logger.info(f"{self.session_name} | Sleep 5s before start the TapBot")
-            await asyncio.sleep(5)
+            await asyncio.sleep(random.randint(3, 20))
 
             start_data = await self.start_bot(http_client=http_client)
             if start_data:
@@ -423,7 +485,7 @@ class Tapper:
         status = await self.upgrade_boost(http_client=http_client, boost_type=UpgradableBoostType.TAPBOT)
         if status:
             logger.success(f"{self.session_name} | Successfully purchased TapBot")
-            await asyncio.sleep(1)
+            await asyncio.sleep(random.randint(3, 20))
             await self.start_tapbot(http_client, bot_config)
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
@@ -488,11 +550,11 @@ class Tapper:
                         logger.info(f"{self.session_name} | Current boss level: <lm>{current_boss_level:,}</lm> | "
                                     f"Boss health: <lr>{boss_current_health:,}</lr><lw>/</lw><le>{boss_max_health:,}</le>")
 
-                        await asyncio.sleep(delay=.5)
+                        await asyncio.sleep(random.randint(3, 20))
 
                     spins = profile_data.get('spinEnergyTotal', 0)
                     while spins > 0:
-                        await asyncio.sleep(delay=1)
+                        await asyncio.sleep(random.randint(3, 20))
 
                         spin_multiplier = calculate_spin_multiplier(spins=spins)
                         play_data = await self.play_slotmachine(http_client=http_client,
@@ -507,7 +569,7 @@ class Tapper:
                                     f"Balance: <lc>{balance:,}</lc> (<lg>+{reward_amount:,}</lg> <lm>{reward_type}</lm>) | "
                                     f"Spins: <le>{spins:,}</le> (<lr>-{spin_multiplier:,}</lr>)")
 
-                        await asyncio.sleep(delay=1)
+                        await asyncio.sleep(random.randint(3, 20))
 
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
@@ -579,25 +641,25 @@ class Tapper:
                                 and available_energy < settings.MIN_AVAILABLE_ENERGY
                                 and settings.APPLY_DAILY_ENERGY is True):
                             logger.info(f"{self.session_name} | Sleep <lw>5s</lw> before activating daily energy boost")
-                            await asyncio.sleep(delay=5)
+                            await asyncio.sleep(random.randint(3, 20))
 
                             status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
                             if status is True:
                                 logger.success(f"{self.session_name} | Energy boost applied")
 
-                                await asyncio.sleep(delay=1)
+                                await asyncio.sleep(random.randint(3, 20))
 
                             continue
 
                         if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
                             logger.info(f"{self.session_name} | Sleep <lw>5s</lw> before activating daily turbo boost")
-                            await asyncio.sleep(delay=5)
+                            await asyncio.sleep(random.randint(3, 20))
 
                             status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
                             if status is True:
                                 logger.success(f"{self.session_name} | Turbo boost applied")
 
-                                await asyncio.sleep(delay=1)
+                                await asyncio.sleep(random.randint(3, 20))
 
                                 active_turbo = True
                                 turbo_time = time()
@@ -626,7 +688,7 @@ class Tapper:
 
                                 if ends_at_timestamp < time():
                                     logger.info(f"{self.session_name} | Sleep <lw>5s</lw> before claim TapBot")
-                                    await asyncio.sleep(5)
+                                    await asyncio.sleep(random.randint(3, 20))
 
                                     claim_data = await self.claim_bot(http_client=http_client)
                                     if claim_data:
@@ -645,7 +707,7 @@ class Tapper:
                                     logger.success(f"{self.session_name} | "
                                                    f"Tap upgraded to <lm>{next_tap_level}</lm> lvl")
 
-                                    await asyncio.sleep(delay=1)
+                                    await asyncio.sleep(random.randint(3, 20))
                             else:
                                 logger.warning(f"{self.session_name} | "
                                                f"Need more gold for upgrade tap to <lm>{next_tap_level}</lm> lvl "
@@ -660,7 +722,7 @@ class Tapper:
                                     logger.success(f"{self.session_name} | "
                                                    f"Energy upgraded to <lm>{next_energy_level}</lm> lvl")
 
-                                    await asyncio.sleep(delay=1)
+                                    await asyncio.sleep(random.randint(3, 20))
                             else:
                                 logger.warning(f"{self.session_name} | "
                                                f"Need more gold for upgrade energy to <lm>{next_energy_level}</lm> lvl "
@@ -676,7 +738,7 @@ class Tapper:
                                     logger.success(f"{self.session_name} | "
                                                    f"Charge upgraded to <lm>{next_charge_level}</lm> lvl")
 
-                                    await asyncio.sleep(delay=1)
+                                    await asyncio.sleep(random.randint(3, 20))
                             else:
                                 logger.warning(f"{self.session_name} | "
                                                f"Need more gold for upgrade charge to <lm>{next_energy_level}</lm> lvl "
@@ -706,7 +768,7 @@ class Tapper:
 
                 except Exception as error:
                     logger.error(f"{self.session_name} | ❗️ Unknown error: {error}")
-                    await asyncio.sleep(delay=3)
+                    await asyncio.sleep(random.randint(3, 20))
 
                 else:
                     sleep_between_clicks = randint(a=settings.SLEEP_BETWEEN_TAP[0], b=settings.SLEEP_BETWEEN_TAP[1])
@@ -725,3 +787,4 @@ async def run_tapper(tg_client: Client, proxy: str | None):
         logger.error(f"{tg_client.name} | Invalid protocol detected at {error}")
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
+

@@ -65,6 +65,7 @@ Also for quick launch you can use arguments, for example:
 # Or
 ~/MemeFiBot >>> python3 main.py -a (1/2)
 
+python main.py --action 2
 #1 - Create session
 #2 - Run clicker
 ```

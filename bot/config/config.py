@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
-    API_ID: int
-    API_HASH: str
+    API_ID: int = 1
+    API_HASH: str = '1'
 
     MIN_AVAILABLE_ENERGY: int = 100
     SLEEP_BY_MIN_ENERGY: Union[list[int], int] = [1800, 3600]
