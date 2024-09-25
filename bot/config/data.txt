@@ -1,0 +1,1 @@
+query_id=AAF8wRc_AwAAAHzBFz-wXbGa&user=%7B%22id%22%3A7500972412%2C%22first_name%22%3A%22Bruce%20Hughes%22%2C%22last_name%22%3A%22%22%2C%22language_code%22%3A%22zh-hans%22%2C%22allows_write_to_pm%22%3Atrue%7D&auth_date=1727168037&hash=a79a2b7a0d4b9ebc53a937d4cba7fa6b525e4e19d1de2358f7f4a5c41f20bfde
