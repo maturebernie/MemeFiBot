@@ -507,6 +507,7 @@ class Tapper:
             else aiohttp.TCPConnector(ssl=ssl_context)
 
         async with aiocfscrape.CloudflareScraper(headers=headers, connector=conn) as http_client:
+            logger.info(f"{proxy} is being used")
             if proxy:
                 await self.check_proxy(http_client=http_client, proxy=proxy)
 
