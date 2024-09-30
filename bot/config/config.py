@@ -27,10 +27,10 @@ class Settings(BaseSettings):
     RANDOM_TAPS_COUNT: list[int] = [15, 75]
     SLEEP_BETWEEN_TAP: list[int] = [15, 25]
 
-    USE_PROXY_FROM_FILE: bool = False
+    USE_PROXY_FROM_FILE: bool = True
 
-    USE_TAP_BOT: bool = False
-    EMERGENCY_STOP: bool = False
+    USE_TAP_BOT: bool = True
+    EMERGENCY_STOP: bool = True
 
 
 settings = Settings()
