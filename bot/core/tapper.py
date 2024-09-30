@@ -785,7 +785,7 @@ async def run_tapper(tg_client: Client, proxy: str | None):
     try:
         await Tapper(tg_client=tg_client).run(proxy=proxy)
     except InvalidProtocol as error:
-        logger.error(f"{tg_client.name} | Invalid protocol detected at {error}")
+        logger.error(f"{tg_client} | Invalid protocol detected at {error}")
     except InvalidSession:
-        logger.error(f"{tg_client.name} | Invalid Session")
+        logger.error(f"{tg_client} | Invalid Session")
 
