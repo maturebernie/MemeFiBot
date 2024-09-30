@@ -29,8 +29,8 @@ class Settings(BaseSettings):
 
     USE_PROXY_FROM_FILE: bool = True
 
-    USE_TAP_BOT: bool = True
-    EMERGENCY_STOP: bool = True
+    USE_TAP_BOT: bool = False
+    EMERGENCY_STOP: bool = False
 
 
 settings = Settings()
